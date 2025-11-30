@@ -81,9 +81,10 @@ st.markdown("""
         font-weight: bold;
     }
 
-    /* Remove default padding */
+    /* Fix Layout Overlap */
     .block-container {
-        padding-top: 2rem;
+        padding-top: 5rem; /* Increased padding to clear top bar */
+        max-width: 95%;
     }
     
     #MainMenu {visibility: hidden;}
@@ -214,13 +215,34 @@ def get_fear_and_greed_proxy():
     except:
         return 50, "Neutral"
 
+def safe_extract_news_title(item):
+    """Recursively search for a title in a messy dictionary."""
+    if not isinstance(item, dict):
+        return None
+    
+    # Direct check
+    if 'title' in item and item['title']:
+        return item['title']
+    
+    # Check content
+    if 'content' in item and isinstance(item['content'], dict):
+        if 'title' in item['content'] and item['content']['title']:
+            return item['content']['title']
+            
+    # Recursive search (BFS) if needed, but keeping it simple for speed
+    for key, value in item.items():
+        if isinstance(value, dict):
+            res = safe_extract_news_title(value)
+            if res: return res
+            
+    return None
+
 def analyze_news_sentiment(news_items):
     if not news_items: return 0, 0, 0, "Neutral"
     
     polarities = []
     for item in news_items:
-        title = item.get('title')
-        if not title and 'content' in item: title = item['content'].get('title')
+        title = safe_extract_news_title(item)
         if title:
             blob = TextBlob(title)
             polarities.append(blob.sentiment.polarity)
@@ -429,8 +451,8 @@ if ticker:
             st.subheader(f"Recent Headlines for {ticker}")
             if news:
                 for item in news[:10]:
-                    title = item.get('title', 'No Title')
-                    if 'content' in item and not title: title = item['content'].get('title')
+                    title = safe_extract_news_title(item)
+                    if not title: title = "No Title Available"
                     
                     # Extract Link
                     link = item.get('link') or item.get('url')
